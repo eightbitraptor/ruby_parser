@@ -185,6 +185,48 @@ module TestRubyParserShared
     assert_syntax_error rb, "else without rescue is useless"
   end
 
+  def test_rescue_splat_exception_classes_broken
+    rb = <<~CODE
+      begin
+        exceptions = [SecondException]
+      rescue FirstException, *exceptions, OtherException
+        puts "error"
+      end
+    CODE
+
+    pt = s(:rescue,
+      s(:lasgn, :exceptions, s(:array, s(:const, :SecondException))),
+      s(:resbody,
+        s(:array,
+          s(:const, :FirstException),
+          s(:const, :OtherException),
+          s(:splat, s(:lvar, :exceptions))),
+          s(:call, nil, :puts, s(:str, "error"))))
+
+    assert_parse rb, pt
+  end
+
+  def test_rescue_splat_exception_classes_works
+    rb = <<~CODE
+      begin
+        exceptions = [SecondException]
+      rescue FirstException, OtherException, *exceptions
+        puts "error"
+      end
+    CODE
+
+    pt = s(:rescue,
+      s(:lasgn, :exceptions, s(:array, s(:const, :SecondException))),
+      s(:resbody,
+        s(:array,
+          s(:const, :FirstException),
+          s(:const, :OtherException),
+          s(:splat, s(:lvar, :exceptions))),
+          s(:call, nil, :puts, s(:str, "error"))))
+
+    assert_parse rb, pt
+  end
+
   def test_block_append
     head = s(:args).line 1
     tail = s(:zsuper).line 2
